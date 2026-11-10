@@ -25,8 +25,8 @@
 --                            only savings_fluid > 0 -> borderline (depends on per-second
 --                                                      billing; test before moving)
 --                            otherwise              -> stay on on-demand
---                            It compares cost only and ignores performance, baseline
---                            commitments and workload changes; treat it as a starting point.
+--                            It compares cost only and ignores performance and workload
+--                            changes; treat it as a starting point.
 --
 -- HOW TO USE
 --   1. Run in the BigQuery console, or:
@@ -38,7 +38,7 @@
 --        slot_hour_rate - price per slot-hour for your edition and region. The default
 --                         0.06 is Enterprise pay-as-you-go in US/EU regions.
 --        tib_rate       - on-demand price per TiB. The default 6.25 is for US/EU regions.
---      Prices vary by edition, region and commitment; confirm against current pricing.
+--      Prices vary by edition and region; confirm against current pricing.
 --
 --   3. REGION: replace `region-us` in BOTH FROM clauses (JOBS_TIMELINE_BY_PROJECT and
 --      JOBS_BY_PROJECT) with the region your jobs run in (region-eu,
@@ -66,8 +66,8 @@
 --   counted. Slot-hours are rounded up to 50 slots, the Editions autoscaling increment.
 --
 -- LIMITATIONS
---   Estimates Editions with autoscaling only and no baseline or commitment discounts,
---   so it is a conservative comparison; use the baseline queries to model those.
+--   Estimates Editions with autoscaling only and no baseline slots, so it is a
+--   conservative comparison; use the baseline queries to model a baseline.
 --   Observed on-demand usage is not limited by a reservation's max, so peaks may
 --   exceed what a reservation would allow. These are estimates for a starting point,
 --   not a pricing guarantee; validate against your workload and current pricing.
@@ -168,7 +168,7 @@ SELECT
   *,
   CASE
     WHEN savings_standard > 0 THEN 'Move to Editions: cheaper under both autoscaling models'
-    WHEN savings_fluid > 0 THEN 'Borderline: cheaper only if autoscaling bills per second (fluid); consider staying on-demand or testing first'
+    WHEN savings_fluid > 0 THEN 'Move to Editions with fluid scaling: cheaper only with per-second billing, so enable fluid scaling after setup'
     ELSE 'Stay on on-demand: Editions would have cost more'
   END AS recommendation
 FROM (
