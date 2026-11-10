@@ -9,7 +9,7 @@
 --
 -- OUTPUT
 --   baseline_slots - 10th percentile of per-minute slot usage, rounded DOWN to the
---                    nearest 50 (conservative: avoids over-committing).
+--                    nearest 50 (conservative: avoids paying for idle slots).
 --
 -- HOW TO USE
 --   1. Run in the BigQuery console, or:
@@ -37,10 +37,9 @@
 --   5. JOB TYPES: only QUERY jobs are counted by design; other job types rarely
 --      consume meaningful slots.
 --
---   6. BASELINE PERCENTILE: OFFSET(10) means busy in 90% of minutes. Lower numbers
---      give a larger baseline. Match it to your break-even utilization (baseline
---      price / autoscale price): OFFSET(20) ~ 80% (1-year commit), OFFSET(40) ~ 60%
---      (3-year commit). Confirm discounts against current pricing.
+--   6. BASELINE PERCENTILE: OFFSET(10) means busy in 90% of minutes. A higher
+--      number gives a smaller baseline (OFFSET(20) = busy in 80% of minutes), a
+--      lower number a larger one. Use slot_duration_curve.sql to see the trade-off.
 --
 -- HOW IT WORKS
 --   Filters on job_creation_time (start_ts to end_ts), the partitioning column of the

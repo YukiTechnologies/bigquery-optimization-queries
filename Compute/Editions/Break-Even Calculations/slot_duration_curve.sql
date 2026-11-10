@@ -17,8 +17,7 @@
 --
 -- READING IT
 --   A baseline slot pays off when it is busy more often than the break-even
---   utilization = baseline price / autoscale price (roughly 100% pay-as-you-go,
---   ~80% with a 1-year commit, ~60% with a 3-year commit; confirm current rates).
+--   utilization = baseline price / autoscale price for your rates.
 --   On the plot, draw a horizontal line at the break-even utilization; the best
 --   baseline is the highest level where the curve is still above that line.
 --
