@@ -1,0 +1,46 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Editors and IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+
+# Environment and credentials (never commit these)
+.env
+.env.*
+*.pem
+*.key
+*credentials*.json
+*service-account*.json
+
+# Query results and local exports
+*.csv
+*.xlsx
+*.parquet
+results/
+output/
+
+# Python / Node (if helper scripts are added)
+__pycache__/
+*.pyc
+.venv/
+venv/
+node_modules/
