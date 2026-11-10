@@ -36,9 +36,11 @@
 --   3. PROJECT: by default the project the query runs in is analyzed. To analyze
 --      another project, prefix the view:
 --        `my-project`.`region-us`.INFORMATION_SCHEMA.JOBS_TIMELINE_BY_PROJECT
---      To size a reservation shared by many projects, run per project and add the
---      results, or use `region-us`.INFORMATION_SCHEMA.JOBS_TIMELINE_BY_ORGANIZATION
---      (needs org-level bigquery.jobs.listAll) with a project_id IN (...) filter.
+--      To size a reservation shared by many projects, uncomment the OPTIONAL
+--      UNION ALL block in the `timeline` CTE for each extra project, so usage is
+--      combined per minute. Alternatively use
+--      `region-us`.INFORMATION_SCHEMA.JOBS_TIMELINE_BY_ORGANIZATION (needs org-level
+--      bigquery.jobs.listAll) with a project_id IN (...) filter.
 --
 --   4. WINDOW: change INTERVAL 30 DAY in start_ts (up to 180 days of history). Use a
 --      window that includes your peaks (e.g. month-end), not just a quiet stretch.
@@ -78,18 +80,41 @@ WITH minutes AS (
   SELECT minute
   FROM UNNEST(GENERATE_TIMESTAMP_ARRAY(start_ts, TIMESTAMP_SUB(end_ts, INTERVAL 1 MINUTE), INTERVAL 1 MINUTE)) AS minute
 ),
--- Average slots in use per minute: slot-milliseconds / 60,000 ms per minute.
+-- Raw timeline rows for the project being analyzed.
 -- Change `region-us` (and optionally prefix a project) to match your environment.
+timeline AS (
+  (
+    SELECT period_start, period_slot_ms
+    FROM `region-us`.INFORMATION_SCHEMA.JOBS_TIMELINE_BY_PROJECT
+    WHERE job_creation_time >= start_ts AND job_creation_time < end_ts  -- partition filter
+      -- QUERY jobs only, by design. Exclude SCRIPT parent jobs, which would double
+      -- count the slots already reported by their child jobs.
+      AND job_type = 'QUERY'
+      AND (statement_type IS NULL OR statement_type != 'SCRIPT')
+  )
+
+  -- OPTIONAL: combine additional projects (e.g. a reservation with several projects
+  -- assigned). Uncomment one parenthesized block per extra project and replace
+  -- `other-project` and the region. Keep the filters identical to the block above.
+  -- This is a UNION ALL rather than a JOIN so usage from all projects is summed per
+  -- minute by the `usage` CTE below. Each project's region must match, and you need
+  -- bigquery.jobs.listAll on every project.
+  -- UNION ALL
+  -- (
+  --   SELECT period_start, period_slot_ms
+  --   FROM `other-project`.`region-us`.INFORMATION_SCHEMA.JOBS_TIMELINE_BY_PROJECT
+  --   WHERE job_creation_time >= start_ts AND job_creation_time < end_ts
+  --     AND job_type = 'QUERY'
+  --     AND (statement_type IS NULL OR statement_type != 'SCRIPT')
+  -- )
+),
+-- Average slots in use per minute across all projects in `timeline`:
+-- slot-milliseconds / 60,000 ms per minute.
 usage AS (
   SELECT
     TIMESTAMP_TRUNC(period_start, MINUTE) AS minute,
     SUM(period_slot_ms) / (1000 * 60) AS slots
-  FROM `region-us`.INFORMATION_SCHEMA.JOBS_TIMELINE_BY_PROJECT
-  WHERE job_creation_time >= start_ts AND job_creation_time < end_ts  -- partition filter
-    -- QUERY jobs only, by design. Exclude SCRIPT parent jobs, which would double
-    -- count the slots already reported by their child jobs.
-    AND job_type = 'QUERY'
-    AND (statement_type IS NULL OR statement_type != 'SCRIPT')
+  FROM timeline
   GROUP BY minute
 ),
 -- Join onto the minute grid; minutes with no jobs get 0 slots.
